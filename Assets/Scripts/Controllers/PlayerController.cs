@@ -3,22 +3,34 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour {
+    // INSPECTOR VARIABLES
     [Tooltip("The speed at which the player moves")]
     public float moveSpeed = 5;
+
     [Tooltip("The rate the character turns (does not effect direction of movement)")]
     public float turnSpeed = 15;
+
     [Tooltip("Turns on debugging visuals")]
     public bool debug = false;
 
+    [Tooltip("Clip the character to the floor if he's this far from the floor and not jumping. This helps with going down slopes")]
+    public float clipThreshold;
+
+    //PRIVATE VARIABLES
     // The position the player is currently trying to move to
     private Vector3 targetPosition;
+    // The rigidbody for the current player
     private Rigidbody myRigidbody;
+    private CapsuleCollider myCollider;
+    // Whether the character is intentionally off the ground
+    private bool isJumping = false;
 
 
 	// Use this for initialization
 	void Start () {
         targetPosition = gameObject.transform.position;
         myRigidbody = gameObject.GetComponent<Rigidbody>();
+        myCollider = gameObject.GetComponent<CapsuleCollider>();
 	}
 	
 	// Update is called once per frame
@@ -27,6 +39,12 @@ public class PlayerController : MonoBehaviour {
         UpdateMovement();
         HandleDebug();
 	}
+
+    // Physics update
+    private void FixedUpdate()
+    {
+        slopeClip();
+    }
 
     void HandleInput()
     {
@@ -41,6 +59,8 @@ public class PlayerController : MonoBehaviour {
     void UpdateMovement()
     {
         // Find the direction we need to move to reach our goal
+        // NOTE: despite only moving x and z, we get the direction in 3 dimensions for a damping effect
+        // as you approach the point, the vector points downwards, decreasing the x and z components and easing to a halt
         Vector3 moveDirection = (targetPosition - gameObject.transform.position).normalized;
         // Set the x and z directions of velocity, but retain gravitation effects from y
         myRigidbody.velocity = new Vector3(moveDirection.x * moveSpeed, myRigidbody.velocity.y, moveDirection.z * moveSpeed);
@@ -66,6 +86,28 @@ public class PlayerController : MonoBehaviour {
         if (debug)
         {
             Debug.DrawLine(transform.position, targetPosition, Color.red);
+        }
+    }
+
+    // If the character is not jumping snap him to the ground within a threshold (for going down ramps)
+    void slopeClip()
+    {
+        // Only clip if we're not intentionally jumping
+        if(!isJumping)
+        {
+            // Get the bottom position of our collider from which to cast the ray
+            Vector3 bottom = gameObject.transform.position - new Vector3(0, (myCollider.height / 2), 0);
+            // Raycast to check if the player is within the threshold to the nearest ground
+            RaycastHit hit;
+            Ray clippingRay = new Ray(bottom, Vector3.down);
+            if (Physics.Raycast(clippingRay, out hit, clipThreshold))
+            {
+                // Only consider navigable terrain
+                if (hit.collider.tag == "Terrain")
+                {
+                    gameObject.transform.position -= new Vector3(0, hit.distance, 0);
+                }
+            }
         }
     }
 }
