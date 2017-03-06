@@ -21,7 +21,10 @@ public class PlayerController : MonoBehaviour {
     private Vector3 targetPosition;
     // The rigidbody for the current player
     private Rigidbody myRigidbody;
+    // The collider for the current player
     private CapsuleCollider myCollider;
+    // The animator attached to the player
+    private Animator myAnimator;
     // Whether the character is intentionally off the ground
     private bool isJumping = false;
 
@@ -31,6 +34,9 @@ public class PlayerController : MonoBehaviour {
         targetPosition = gameObject.transform.position;
         myRigidbody = gameObject.GetComponent<Rigidbody>();
         myCollider = gameObject.GetComponent<CapsuleCollider>();
+        myAnimator = gameObject.GetComponent<Animator>();
+
+        myAnimator.enabled = false;
 	}
 	
 	// Update is called once per frame
@@ -54,6 +60,16 @@ public class PlayerController : MonoBehaviour {
             // Set the target position to mouse location projected onto game environment
             MoveTargetToMousePosition();
         }
+
+        // If space bar is pressed
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            BeginSpinAttack();
+        }
+        else if (Input.GetKeyUp(KeyCode.Space))
+        {
+            StopSpinAttack();
+        }
     }
 
     void UpdateMovement()
@@ -64,6 +80,13 @@ public class PlayerController : MonoBehaviour {
         Vector3 moveDirection = (targetPosition - gameObject.transform.position).normalized;
         // Set the x and z directions of velocity, but retain gravitation effects from y
         myRigidbody.velocity = new Vector3(moveDirection.x * moveSpeed, myRigidbody.velocity.y, moveDirection.z * moveSpeed);
+
+        // Rotate towards the point. Make sure the point is at the same height so we are only rotating around the y
+        Vector3 lookPoint = targetPosition;
+        lookPoint.y = gameObject.transform.position.y;
+        Quaternion lookAtPoint = Quaternion.LookRotation(lookPoint - gameObject.transform.position, Vector3.up);
+        Quaternion newRotation = Quaternion.Slerp(gameObject.transform.rotation, lookAtPoint, turnSpeed * Time.deltaTime);
+        gameObject.transform.rotation = newRotation;
     }
 
     void MoveTargetToMousePosition()
@@ -109,5 +132,14 @@ public class PlayerController : MonoBehaviour {
                 }
             }
         }
+    }
+
+    void BeginSpinAttack() {
+        myAnimator.enabled = true;
+        myAnimator.SetBool("Attacking", true);
+    }
+    void StopSpinAttack() {
+        myAnimator.SetBool("Attacking", false);
+        myAnimator.enabled = false;
     }
 }
